@@ -240,6 +240,9 @@ export const DiscordGuildChannelSchema = z
     systemPrompt: z.string().optional(),
     includeThreadStarter: z.boolean().optional(),
     autoThread: z.boolean().optional(),
+    textPolicy: z
+      .enum(["normal", "suppress-with-tools", "suppress-all", "tool-only"])
+      .optional(),
   })
   .strict();
 
