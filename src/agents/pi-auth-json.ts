@@ -133,6 +133,11 @@ export async function ensurePiAuthJsonFromAuthProfiles(agentDir: string): Promis
     }
   }
 
+  // So "models list" marks Ollama as available when it is auto-registered (ref #22913)
+  if (!providerCredentials.has("ollama")) {
+    providerCredentials.set("ollama", { type: "api_key", key: "ollama-local" });
+  }
+
   if (providerCredentials.size === 0) {
     return { wrote: false, authPath };
   }

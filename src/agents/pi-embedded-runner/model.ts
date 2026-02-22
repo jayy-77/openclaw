@@ -108,18 +108,17 @@ export function resolveModel(
 /**
  * Build a more helpful error when the model is not found.
  *
- * Local providers (ollama, vllm) need a dummy API key to be registered.
- * Users often configure `agents.defaults.model.primary: "ollama/…"` but
- * forget to set `OLLAMA_API_KEY`, resulting in a confusing "Unknown model"
- * error.  This detects known providers that require opt-in auth and adds
- * a hint.
+ * Ollama is auto-detected when running (ref #22913); run "openclaw models list"
+ * to refresh. If the model still does not appear, ensure Ollama is running and
+ * the model is pulled (e.g. ollama pull <model>). vLLM requires an API key to
+ * be registered.
  *
  * See: https://github.com/openclaw/openclaw/issues/17328
  */
 const LOCAL_PROVIDER_HINTS: Record<string, string> = {
   ollama:
-    "Ollama requires authentication to be registered as a provider. " +
-    'Set OLLAMA_API_KEY="ollama-local" (any value works) or run "openclaw configure". ' +
+    "Ollama is auto-detected when running. Run \"openclaw models list\" to refresh. " +
+    "Ensure Ollama is running and the model is pulled (e.g. ollama pull <model>). " +
     "See: https://docs.openclaw.ai/providers/ollama",
   vllm:
     "vLLM requires authentication to be registered as a provider. " +

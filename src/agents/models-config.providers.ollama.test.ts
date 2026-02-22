@@ -25,11 +25,13 @@ describe("resolveOllamaApiBase", () => {
 });
 
 describe("Ollama provider", () => {
-  it("should not include ollama when no API key is configured", async () => {
+  it("should include ollama with placeholder key when no API key is configured (#22913)", async () => {
     const agentDir = mkdtempSync(join(tmpdir(), "openclaw-test-"));
     const providers = await resolveImplicitProviders({ agentDir });
 
-    expect(providers?.ollama).toBeUndefined();
+    expect(providers?.ollama).toBeDefined();
+    expect(providers?.ollama?.apiKey).toBe("ollama-local");
+    expect(providers?.ollama?.api).toBe("ollama");
   });
 
   it("should use native ollama api type", async () => {

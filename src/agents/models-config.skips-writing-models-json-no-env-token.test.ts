@@ -53,13 +53,12 @@ async function runEnvProviderCase(params: {
 }
 
 describe("models-config", () => {
-  it("skips writing models.json when no env token or profile exists", async () => {
+  it("writes models.json with Ollama when no env token or profile exists (#22913)", async () => {
     await withTempHome(async (home) => {
       await withTempEnv([...MODELS_CONFIG_IMPLICIT_ENV_VARS, "KIMI_API_KEY"], async () => {
         unsetEnv([...MODELS_CONFIG_IMPLICIT_ENV_VARS, "KIMI_API_KEY"]);
 
         const agentDir = path.join(home, "agent-empty");
-        // ensureAuthProfileStore merges the main auth store into non-main dirs; point main at our temp dir.
         process.env.OPENCLAW_AGENT_DIR = agentDir;
         process.env.PI_CODING_AGENT_DIR = agentDir;
 
@@ -70,8 +69,12 @@ describe("models-config", () => {
           agentDir,
         );
 
-        await expect(fs.stat(path.join(agentDir, "models.json"))).rejects.toThrow();
-        expect(result.wrote).toBe(false);
+        const modelPath = path.join(agentDir, "models.json");
+        await expect(fs.stat(modelPath)).resolves.toBeDefined();
+        expect(result.wrote).toBe(true);
+        const raw = await fs.readFile(modelPath, "utf8");
+        const parsed = JSON.parse(raw) as { providers?: Record<string, { api?: string }> };
+        expect(parsed.providers?.ollama?.api).toBe("ollama");
       });
     });
   });

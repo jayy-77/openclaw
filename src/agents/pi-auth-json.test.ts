@@ -129,7 +129,7 @@ describe("ensurePiAuthJsonFromAuthProfiles", () => {
     expect(auth["openai-codex"]).toMatchObject({ type: "oauth", access: "access" });
   });
 
-  it("skips profiles with empty keys", async () => {
+  it("skips profiles with empty keys but still writes ollama placeholder (#22913)", async () => {
     const agentDir = await createAgentDir();
 
     writeProfiles(agentDir, {
@@ -141,10 +141,12 @@ describe("ensurePiAuthJsonFromAuthProfiles", () => {
     });
 
     const result = await ensurePiAuthJsonFromAuthProfiles(agentDir);
-    expect(result.wrote).toBe(false);
+    expect(result.wrote).toBe(true);
+    const auth = await readAuthJson(agentDir);
+    expect(auth["ollama"]).toMatchObject({ type: "api_key", key: "ollama-local" });
   });
 
-  it("skips expired token credentials", async () => {
+  it("skips expired token credentials but still writes ollama placeholder (#22913)", async () => {
     const agentDir = await createAgentDir();
 
     writeProfiles(agentDir, {
@@ -157,7 +159,9 @@ describe("ensurePiAuthJsonFromAuthProfiles", () => {
     });
 
     const result = await ensurePiAuthJsonFromAuthProfiles(agentDir);
-    expect(result.wrote).toBe(false);
+    expect(result.wrote).toBe(true);
+    const auth = await readAuthJson(agentDir);
+    expect(auth["ollama"]).toMatchObject({ type: "api_key", key: "ollama-local" });
   });
 
   it("normalizes provider ids when writing auth.json keys", async () => {
