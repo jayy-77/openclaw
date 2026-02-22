@@ -331,6 +331,14 @@ export const FIELD_HELP: Record<string, string> = {
   "agents.defaults.humanDelay.mode": 'Delay style for block replies ("off", "natural", "custom").',
   "agents.defaults.humanDelay.minMs": "Minimum delay in ms for custom humanDelay (default: 800).",
   "agents.defaults.humanDelay.maxMs": "Maximum delay in ms for custom humanDelay (default: 2500).",
+  "agents.defaults.compaction.audit":
+    "Post-compaction read audit: where to deliver warnings when required startup files were not read after context reset (ref #22868).",
+  "agents.defaults.compaction.audit.enabled":
+    "When false, no audit warning is enqueued or delivered. Default: true.",
+  "agents.defaults.compaction.audit.channel":
+    'Deliver audit to this channel instead of the session (e.g. "telegram:-1003741251889" or "-1003741251889" for Telegram).',
+  "agents.defaults.compaction.audit.silent":
+    "When true, audit is only added as internal context (session prompt); never delivered as a separate message to any channel.",
   "commands.native":
     "Register native commands with channels that support it (Discord/Slack/Telegram).",
   "commands.nativeSkills":

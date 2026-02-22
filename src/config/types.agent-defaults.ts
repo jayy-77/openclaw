@@ -286,6 +286,15 @@ export type AgentDefaultsConfig = {
 
 export type AgentCompactionMode = "default" | "safeguard";
 
+export type CompactionAuditConfig = {
+  /** Enable post-compaction read audit (default: true). When false, no audit warning is enqueued or delivered. */
+  enabled?: boolean;
+  /** Deliver audit warning to this channel instead of the session (e.g. "telegram:-1003741251889" or "-1003741251889" for Telegram). */
+  channel?: string;
+  /** When true, audit is only added as internal context (enqueued to session prompt); never delivered as a separate message to any channel. */
+  silent?: boolean;
+};
+
 export type AgentCompactionConfig = {
   /** Compaction summarization mode. */
   mode?: AgentCompactionMode;
@@ -299,6 +308,8 @@ export type AgentCompactionConfig = {
   maxHistoryShare?: number;
   /** Pre-compaction memory flush (agentic turn). Default: enabled. */
   memoryFlush?: AgentCompactionMemoryFlushConfig;
+  /** Post-compaction read audit: routing and suppression (ref #22868). */
+  audit?: CompactionAuditConfig;
 };
 
 export type AgentCompactionMemoryFlushConfig = {

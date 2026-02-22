@@ -18,6 +18,7 @@ import type { TypingMode } from "../../config/types.js";
 import { emitAgentEvent } from "../../infra/agent-events.js";
 import { emitDiagnosticEvent, isDiagnosticsEnabled } from "../../infra/diagnostic-events.js";
 import { generateSecureUuid } from "../../infra/secure-random.js";
+import { deliverPostCompactionAuditToChannel } from "../../infra/post-compaction-audit-delivery.js";
 import { enqueueSystemEvent } from "../../infra/system-events.js";
 import { defaultRuntime } from "../../runtime.js";
 import { estimateUsageCost, resolveModelCostConfig } from "../../utils/usage-format.js";
@@ -704,22 +705,38 @@ export async function runReplyAgent(params: {
       finalPayloads = appendUsageLine(finalPayloads, responseUsageLine);
     }
 
-    // Post-compaction read audit (Layer 3)
+    // Post-compaction read audit (Layer 3) — configurable routing/suppression (#22868)
+    const auditConfig = cfg.agents?.defaults?.compaction?.audit;
+    const auditEnabled = auditConfig?.enabled !== false;
     if (sessionKey && pendingPostCompactionAudits.get(sessionKey)) {
       pendingPostCompactionAudits.delete(sessionKey); // Delete FIRST — one-shot only
-      try {
-        const sessionFile = activeSessionEntry?.sessionFile;
-        if (sessionFile) {
-          const messages = readSessionMessages(sessionFile);
-          const readPaths = extractReadPaths(messages);
-          const workspaceDir = process.cwd();
-          const audit = auditPostCompactionReads(readPaths, workspaceDir);
-          if (!audit.passed) {
-            enqueueSystemEvent(formatAuditWarning(audit.missingPatterns), { sessionKey });
+      if (auditEnabled) {
+        try {
+          const sessionFile = activeSessionEntry?.sessionFile;
+          if (sessionFile) {
+            const messages = readSessionMessages(sessionFile);
+            const readPaths = extractReadPaths(messages);
+            const workspaceDir = process.cwd();
+            const audit = auditPostCompactionReads(readPaths, workspaceDir);
+            if (!audit.passed) {
+              const text = formatAuditWarning(audit.missingPatterns);
+              const channelOpt = auditConfig?.channel?.trim();
+              if (channelOpt) {
+                await deliverPostCompactionAuditToChannel({
+                  cfg,
+                  audit: auditConfig ?? {},
+                  text,
+                  sessionKey,
+                });
+              } else {
+                // No channel: enqueue to session (prompt context). When silent, same — internal context only.
+                enqueueSystemEvent(text, { sessionKey });
+              }
+            }
           }
+        } catch {
+          // Silent failure — audit is best-effort
         }
-      } catch {
-        // Silent failure — audit is best-effort
       }
     }
 

@@ -104,6 +104,14 @@ export const AgentDefaultsSchema = z
           })
           .strict()
           .optional(),
+        audit: z
+          .object({
+            enabled: z.boolean().optional(),
+            channel: z.string().trim().optional(),
+            silent: z.boolean().optional(),
+          })
+          .strict()
+          .optional(),
       })
       .strict()
       .optional(),
