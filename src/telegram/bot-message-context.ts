@@ -117,6 +117,8 @@ export type BuildTelegramMessageContextParams = {
   resolveGroupActivation: ResolveGroupActivation;
   resolveGroupRequireMention: ResolveGroupRequireMention;
   resolveTelegramGroupConfig: ResolveTelegramGroupConfig;
+  /** Passed so group allow list can include other agent bots when multiAgentGroup.enabled. */
+  telegramCfg?: import("../config/types.js").TelegramAccountConfig;
 };
 
 async function resolveStickerVisionSupport(params: {
@@ -157,6 +159,7 @@ export const buildTelegramMessageContext = async ({
   resolveGroupActivation,
   resolveGroupRequireMention,
   resolveTelegramGroupConfig,
+  telegramCfg,
 }: BuildTelegramMessageContextParams) => {
   const msg = primaryCtx.message;
   recordChannelActivity({
@@ -176,6 +179,11 @@ export const buildTelegramMessageContext = async ({
   const resolvedThreadId = threadSpec.scope === "forum" ? threadSpec.id : undefined;
   const replyThreadId = threadSpec.id;
   const { groupConfig, topicConfig } = resolveTelegramGroupConfig(chatId, resolvedThreadId);
+  const multiAgentGroup = firstDefined(
+    topicConfig?.multiAgentGroup,
+    groupConfig?.multiAgentGroup,
+    telegramCfg?.multiAgentGroup,
+  );
   const peerId = isGroup ? buildTelegramGroupPeerId(chatId, resolvedThreadId) : String(chatId);
   const parentPeer = buildTelegramParentPeer({ isGroup, resolvedThreadId, chatId });
   // Fresh config for bindings lookup; other routing inputs are payload-derived.
@@ -200,8 +208,19 @@ export const buildTelegramMessageContext = async ({
   const mentionRegexes = buildMentionRegexes(cfg, route.agentId);
   const effectiveDmAllow = normalizeAllowFromWithStore({ allowFrom, storeAllowFrom, dmPolicy });
   const groupAllowOverride = firstDefined(topicConfig?.allowFrom, groupConfig?.allowFrom);
+  const baseGroupAllow = groupAllowOverride ?? groupAllowFrom;
+  const mergedGroupAllow =
+    isGroup &&
+    multiAgentGroup?.enabled &&
+    Array.isArray(multiAgentGroup.allowAgentBotIds) &&
+    multiAgentGroup.allowAgentBotIds.length > 0
+      ? [
+          ...(Array.isArray(baseGroupAllow) ? baseGroupAllow : []),
+          ...multiAgentGroup.allowAgentBotIds.map((id) => String(id)),
+        ]
+      : baseGroupAllow;
   const effectiveGroupAllow = normalizeAllowFromWithStore({
-    allowFrom: groupAllowOverride ?? groupAllowFrom,
+    allowFrom: mergedGroupAllow,
     storeAllowFrom,
     dmPolicy,
   });

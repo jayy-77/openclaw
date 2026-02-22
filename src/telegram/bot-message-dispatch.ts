@@ -17,6 +17,10 @@ import { createTypingCallbacks } from "../channels/typing.js";
 import { resolveMarkdownTableMode } from "../config/markdown-tables.js";
 import { loadSessionStore, resolveStorePath } from "../config/sessions.js";
 import type { OpenClawConfig, ReplyToMode, TelegramAccountConfig } from "../config/types.js";
+import {
+  recordTurnTakingReply,
+  shouldReplyWithTurnTaking,
+} from "../auto-reply/turn-taking.js";
 import { danger, logVerbose } from "../globals.js";
 import { getAgentScopedMediaLocalRoots } from "../media/local-roots.js";
 import type { RuntimeEnv } from "../runtime.js";
@@ -119,6 +123,24 @@ export const dispatchTelegramMessage = async ({
     removeAckAfterReply,
     statusReactionController,
   } = context;
+
+  if (
+    isGroup &&
+    historyKey &&
+    cfg.messages?.groupChat?.turnTaking &&
+    !shouldReplyWithTurnTaking({
+      groupKey: historyKey,
+      config: cfg.messages.groupChat.turnTaking,
+    })
+  ) {
+    logVerbose(
+      `telegram: skip reply (turn-taking: max depth or cooldown) groupKey=${historyKey}`,
+    );
+    return;
+  }
+  if (isGroup && historyKey && cfg.messages?.groupChat?.turnTaking) {
+    recordTurnTakingReply({ groupKey: historyKey });
+  }
 
   const draftMaxChars = Math.min(textLimit, 4096);
   const tableMode = resolveMarkdownTableMode({

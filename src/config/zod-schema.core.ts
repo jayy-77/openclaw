@@ -90,10 +90,19 @@ export const ModelsConfigSchema = z
   .strict()
   .optional();
 
+export const GroupChatTurnTakingSchema = z
+  .object({
+    maxDepth: z.number().int().min(1).optional(),
+    cooldownMs: z.number().int().min(0).optional(),
+  })
+  .strict()
+  .optional();
+
 export const GroupChatSchema = z
   .object({
     mentionPatterns: z.array(z.string()).optional(),
     historyLimit: z.number().int().positive().optional(),
+    turnTaking: GroupChatTurnTakingSchema,
   })
   .strict()
   .optional();

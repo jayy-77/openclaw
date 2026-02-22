@@ -411,8 +411,20 @@ export const FIELD_HELP: Record<string, string> = {
     "Override default timing. Keys: debounceMs (700), stallSoftMs (25000), stallHardMs (60000), doneHoldMs (1500), errorHoldMs (2500).",
   "messages.inbound.debounceMs":
     "Debounce window (ms) for batching rapid inbound messages from the same sender (0 to disable).",
+  "messages.groupChat.turnTaking":
+    "Turn-taking limits for multi-agent group chats: max depth and cooldown to avoid infinite reply loops.",
+  "messages.groupChat.turnTaking.maxDepth":
+    "Max conversation depth (exchanges) before this agent stops replying (default 10).",
+  "messages.groupChat.turnTaking.cooldownMs":
+    "Cooldown in ms after this agent replies before it can reply again (default 300000 = 5 min).",
   "channels.telegram.dmPolicy":
     'Direct message access control ("pairing" recommended). "open" requires channels.telegram.allowFrom=["*"].',
+  "channels.telegram.multiAgentGroup":
+    "Multi-agent group chat: allow other bots (e.g. other OpenClaw agents) in the same group to be visible. When enabled, messages from allowAgentBotIds are allowed and included in context.",
+  "channels.telegram.multiAgentGroup.enabled":
+    "Enable multi-agent group mode so other agent bots in the group can be seen and replied to.",
+  "channels.telegram.multiAgentGroup.allowAgentBotIds":
+    "Telegram user IDs of other bots (e.g. other OpenClaw agent bot IDs) to allow in group messages.",
   "channels.telegram.streaming":
     'Unified Telegram stream preview mode: "off" | "partial" | "block" | "progress". "progress" maps to "partial" on Telegram. Legacy boolean/streamMode keys are auto-mapped.',
   "channels.discord.streaming":

@@ -52,6 +52,13 @@ const TelegramCapabilitiesSchema = z.union([
     .strict(),
 ]);
 
+const TelegramMultiAgentGroupSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    allowAgentBotIds: z.array(z.union([z.string(), z.number()])).optional(),
+  })
+  .strict();
+
 export const TelegramTopicSchema = z
   .object({
     requireMention: z.boolean().optional(),
@@ -59,6 +66,7 @@ export const TelegramTopicSchema = z
     skills: z.array(z.string()).optional(),
     enabled: z.boolean().optional(),
     allowFrom: z.array(z.union([z.string(), z.number()])).optional(),
+    multiAgentGroup: TelegramMultiAgentGroupSchema.optional(),
     systemPrompt: z.string().optional(),
   })
   .strict();
@@ -72,6 +80,7 @@ export const TelegramGroupSchema = z
     skills: z.array(z.string()).optional(),
     enabled: z.boolean().optional(),
     allowFrom: z.array(z.union([z.string(), z.number()])).optional(),
+    multiAgentGroup: TelegramMultiAgentGroupSchema.optional(),
     systemPrompt: z.string().optional(),
     topics: z.record(z.string(), TelegramTopicSchema.optional()).optional(),
   })
@@ -143,6 +152,7 @@ export const TelegramAccountSchemaBase = z
     defaultTo: z.union([z.string(), z.number()]).optional(),
     groupAllowFrom: z.array(z.union([z.string(), z.number()])).optional(),
     groupPolicy: GroupPolicySchema.optional().default("allowlist"),
+    multiAgentGroup: TelegramMultiAgentGroupSchema.optional(),
     historyLimit: z.number().int().min(0).optional(),
     dmHistoryLimit: z.number().int().min(0).optional(),
     dms: z.record(z.string(), DmConfigSchema.optional()).optional(),

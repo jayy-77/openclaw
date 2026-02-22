@@ -1,9 +1,19 @@
 import type { QueueDropPolicy, QueueMode, QueueModeByProvider } from "./types.queue.js";
 import type { TtsConfig } from "./types.tts.js";
 
+/** Turn-taking limits for multi-agent group chats (depth and cooldown). */
+export type GroupChatTurnTakingConfig = {
+  /** Max conversation depth (exchanges) before stopping (default 10). */
+  maxDepth?: number;
+  /** Cooldown in ms after this agent replies before it can reply again (default 300000 = 5 min). */
+  cooldownMs?: number;
+};
+
 export type GroupChatConfig = {
   mentionPatterns?: string[];
   historyLimit?: number;
+  /** Turn-taking limits for multi-agent group chats. */
+  turnTaking?: GroupChatTurnTakingConfig;
 };
 
 export type DmConfig = {

@@ -86,6 +86,16 @@ export type TelegramAccountConfig = {
    * - "allowlist": only allow group messages from senders in groupAllowFrom/allowFrom
    */
   groupPolicy?: GroupPolicy;
+  /**
+   * Multi-agent group chat: allow other OpenClaw (or other bot) agents in the same group to be
+   * visible to this agent. When enabled, messages from bot IDs in allowAgentBotIds are allowed
+   * and included in conversation context (turn-taking should be configured separately).
+   */
+  multiAgentGroup?: {
+    enabled?: boolean;
+    /** Telegram user IDs of other bots (e.g. other OpenClaw agents) to allow in group. */
+    allowAgentBotIds?: Array<string | number>;
+  };
   /** Max group messages to keep as history context (0 disables). */
   historyLimit?: number;
   /** Max DM turns to keep as history context. */
@@ -173,6 +183,8 @@ export type TelegramTopicConfig = {
   enabled?: boolean;
   /** Optional allowlist for topic senders (numeric Telegram user IDs). */
   allowFrom?: Array<string | number>;
+  /** Multi-agent group overrides (see TelegramAccountConfig.multiAgentGroup). */
+  multiAgentGroup?: TelegramAccountConfig["multiAgentGroup"];
   /** Optional system prompt snippet for this topic. */
   systemPrompt?: string;
 };
@@ -192,6 +204,8 @@ export type TelegramGroupConfig = {
   enabled?: boolean;
   /** Optional allowlist for group senders (numeric Telegram user IDs). */
   allowFrom?: Array<string | number>;
+  /** Multi-agent group overrides (see TelegramAccountConfig.multiAgentGroup). */
+  multiAgentGroup?: TelegramAccountConfig["multiAgentGroup"];
   /** Optional system prompt snippet for this group. */
   systemPrompt?: string;
 };
