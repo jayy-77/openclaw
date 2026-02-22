@@ -448,7 +448,7 @@ async function findPageByTargetId(
   return null;
 }
 
-export async function getPageForTargetId(opts: {
+async function getPageForTargetIdImpl(opts: {
   cdpUrl: string;
   targetId?: string;
 }): Promise<Page> {
@@ -472,6 +472,26 @@ export async function getPageForTargetId(opts: {
     throw new Error("tab not found");
   }
   return found;
+}
+
+export async function getPageForTargetId(opts: {
+  cdpUrl: string;
+  targetId?: string;
+}): Promise<Page> {
+  try {
+    return await getPageForTargetIdImpl(opts);
+  } catch (err) {
+    // One reconnect/rebind on target invalid or connection stale (ref #23127).
+    if (!opts.cdpUrl?.trim()) {
+      throw err;
+    }
+    await forceDisconnectPlaywrightForTarget({
+      cdpUrl: opts.cdpUrl,
+      targetId: opts.targetId,
+      reason: "getPageForTargetId retry",
+    }).catch(() => {});
+    return await getPageForTargetIdImpl(opts);
+  }
 }
 
 export function refLocator(page: Page, ref: string) {

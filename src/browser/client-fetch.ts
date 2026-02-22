@@ -122,6 +122,17 @@ function enhanceBrowserFetchError(url: string, err: unknown, timeoutMs: number):
   );
 }
 
+function isTimeoutLikeError(err: unknown): boolean {
+  const msg = String(err).toLowerCase();
+  return (
+    msg.includes("timed out") ||
+    msg.includes("timeout") ||
+    msg.includes("aborted") ||
+    msg.includes("abort") ||
+    msg.includes("aborterror")
+  );
+}
+
 async function fetchHttpJson<T>(
   url: string,
   init: RequestInit & { timeoutMs?: number },
@@ -158,8 +169,10 @@ async function fetchHttpJson<T>(
 export async function fetchBrowserJson<T>(
   url: string,
   init?: RequestInit & { timeoutMs?: number },
+  opts?: { retryOnTimeout?: boolean },
 ): Promise<T> {
   const timeoutMs = init?.timeoutMs ?? 5000;
+  const retryOnTimeout = opts?.retryOnTimeout !== false;
   try {
     if (isAbsoluteHttp(url)) {
       const httpInit = withLoopbackBrowserAuth(url, init);
@@ -243,6 +256,10 @@ export async function fetchBrowserJson<T>(
     }
     return result.body as T;
   } catch (err) {
+    if (retryOnTimeout && isTimeoutLikeError(err)) {
+      // One retry on timeout to recover from transient CDP unreachability (ref #23127).
+      return await fetchBrowserJson<T>(url, init, { retryOnTimeout: false });
+    }
     throw enhanceBrowserFetchError(url, err, timeoutMs);
   }
 }

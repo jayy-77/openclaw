@@ -368,7 +368,16 @@ function createProfileContext(
   const ensureTabAvailable = async (targetId?: string): Promise<BrowserTab> => {
     await ensureBrowserAvailable();
     const profileState = getProfileState();
-    const tabs1 = await listTabs();
+
+    const listTabsWithRetry = async (): Promise<BrowserTab[]> => {
+      let tabs = await listTabs().catch(() => []);
+      if (tabs.length === 0) {
+        tabs = await listTabs().catch(() => []); // One retry on transient CDP unreachability (ref #23127).
+      }
+      return tabs;
+    };
+
+    let tabs1 = await listTabsWithRetry();
     if (tabs1.length === 0) {
       if (profile.driver === "extension") {
         throw new Error(
@@ -379,41 +388,50 @@ function createProfileContext(
       await openTab("about:blank");
     }
 
-    const tabs = await listTabs();
+    let tabs = await listTabsWithRetry();
     // For remote profiles using Playwright's persistent connection, we don't need wsUrl
     // because we access pages directly through Playwright, not via individual WebSocket URLs.
-    const candidates =
+    let candidates =
       profile.driver === "extension" || !profile.cdpIsLoopback
         ? tabs
         : tabs.filter((t) => Boolean(t.wsUrl));
 
-    const resolveById = (raw: string) => {
-      const resolved = resolveTargetIdFromTabs(raw, candidates);
+    const resolveById = (raw: string, cand: BrowserTab[]) => {
+      const resolved = resolveTargetIdFromTabs(raw, cand);
       if (!resolved.ok) {
         if (resolved.reason === "ambiguous") {
           return "AMBIGUOUS" as const;
         }
         return null;
       }
-      return candidates.find((t) => t.targetId === resolved.targetId) ?? null;
+      return cand.find((t) => t.targetId === resolved.targetId) ?? null;
     };
 
-    const pickDefault = () => {
+    const pickDefault = (cand: BrowserTab[]) => {
       const last = profileState.lastTargetId?.trim() || "";
-      const lastResolved = last ? resolveById(last) : null;
+      const lastResolved = last ? resolveById(last, cand) : null;
       if (lastResolved && lastResolved !== "AMBIGUOUS") {
         return lastResolved;
       }
-      // Prefer a real page tab first (avoid service workers/background targets).
-      const page = candidates.find((t) => (t.type ?? "page") === "page");
-      return page ?? candidates.at(0) ?? null;
+      const page = cand.find((t) => (t.type ?? "page") === "page");
+      return page ?? cand.at(0) ?? null;
     };
 
-    let chosen = targetId ? resolveById(targetId) : pickDefault();
+    let chosen = targetId ? resolveById(targetId, candidates) : pickDefault(candidates);
     if (!chosen && profile.driver === "extension" && candidates.length === 1) {
-      // If an agent passes a stale/foreign targetId but we only have a single attached tab,
-      // recover by using that tab instead of failing hard.
       chosen = candidates[0] ?? null;
+    }
+    if (!chosen) {
+      // Rebind: retry listTabs once when target missing (e.g. tab closed mid-run; ref #23127).
+      tabs = await listTabsWithRetry();
+      candidates =
+        profile.driver === "extension" || !profile.cdpIsLoopback
+          ? tabs
+          : tabs.filter((t) => Boolean(t.wsUrl));
+      chosen = targetId ? resolveById(targetId, candidates) : pickDefault(candidates);
+      if (!chosen && profile.driver === "extension" && candidates.length === 1) {
+        chosen = candidates[0] ?? null;
+      }
     }
 
     if (chosen === "AMBIGUOUS") {

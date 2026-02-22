@@ -32,6 +32,16 @@ export function resolveTargetIdFromQuery(query: Record<string, unknown>): string
   return targetId || undefined;
 }
 
+function isRetriableBrowserError(err: unknown): boolean {
+  const msg = String(err).toLowerCase();
+  return (
+    msg.includes("timed out") ||
+    msg.includes("timeout") ||
+    msg.includes("tab not found") ||
+    msg.includes("no pages available")
+  );
+}
+
 export function handleRouteError(ctx: BrowserRouteContext, res: BrowserResponse, err: unknown) {
   const mapped = ctx.mapTabError(err);
   if (mapped) {
@@ -110,6 +120,19 @@ export async function withRouteTabContext<T>(
       cdpUrl: profileCtx.profile.cdpUrl,
     });
   } catch (err) {
+    if (isRetriableBrowserError(err)) {
+      try {
+        const tabRetry = await profileCtx.ensureTabAvailable(params.targetId);
+        return await params.run({
+          profileCtx,
+          tab: tabRetry,
+          cdpUrl: profileCtx.profile.cdpUrl,
+        });
+      } catch (errRetry) {
+        handleRouteError(params.ctx, params.res, errRetry);
+        return undefined;
+      }
+    }
     handleRouteError(params.ctx, params.res, err);
     return undefined;
   }

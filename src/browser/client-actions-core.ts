@@ -6,6 +6,9 @@ import type {
 import { buildProfileQuery, withBaseUrl } from "./client-actions-url.js";
 import { fetchBrowserJson } from "./client-fetch.js";
 
+/** Timeout for navigate/download in multi-step workflows (ref #23127). */
+const MULTI_STEP_ACTION_TIMEOUT_MS = 30_000;
+
 export type BrowserFormField = {
   ref: string;
   type: string;
@@ -101,7 +104,7 @@ async function postDownloadRequest(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
-    timeoutMs: 20000,
+    timeoutMs: MULTI_STEP_ACTION_TIMEOUT_MS,
   });
 }
 
@@ -118,7 +121,7 @@ export async function browserNavigate(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ url: opts.url, targetId: opts.targetId }),
-    timeoutMs: 20000,
+    timeoutMs: MULTI_STEP_ACTION_TIMEOUT_MS,
   });
 }
 
