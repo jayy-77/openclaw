@@ -7,7 +7,7 @@ import {
 } from "./constants.js";
 import { execFileUtf8 } from "./exec-file.js";
 import { formatLine, toPosixPath, writeFormattedLines } from "./output.js";
-import { resolveHomeDir } from "./paths.js";
+import { parseEnvFileContent, resolveHomeDir, resolveUserPathWithHome } from "./paths.js";
 import { parseKeyValueOutput } from "./runtime-parse.js";
 import type { GatewayServiceRuntime } from "./service-runtime.js";
 import type {
@@ -63,7 +63,8 @@ export async function readSystemdServiceExecStart(
     const content = await fs.readFile(unitPath, "utf8");
     let execStart = "";
     let workingDirectory = "";
-    const environment: Record<string, string> = {};
+    const envFilePaths: string[] = [];
+    const envAssignments: Array<{ key: string; value: string }> = [];
     for (const rawLine of content.split("\n")) {
       const line = rawLine.trim();
       if (!line || line.startsWith("#")) {
@@ -73,16 +74,37 @@ export async function readSystemdServiceExecStart(
         execStart = line.slice("ExecStart=".length).trim();
       } else if (line.startsWith("WorkingDirectory=")) {
         workingDirectory = line.slice("WorkingDirectory=".length).trim();
+      } else if (line.startsWith("EnvironmentFile=")) {
+        const raw = line.slice("EnvironmentFile=".length).trim();
+        const optional = raw.startsWith("-");
+        const pathSpec = (optional ? raw.slice(1) : raw).trim();
+        if (pathSpec) {
+          envFilePaths.push(pathSpec);
+        }
       } else if (line.startsWith("Environment=")) {
         const raw = line.slice("Environment=".length).trim();
         const parsed = parseSystemdEnvAssignment(raw);
         if (parsed) {
-          environment[parsed.key] = parsed.value;
+          envAssignments.push({ key: parsed.key, value: parsed.value });
         }
       }
     }
     if (!execStart) {
       return null;
+    }
+    const home = resolveHomeDir(env);
+    const environment: Record<string, string> = {};
+    for (const pathSpec of envFilePaths) {
+      try {
+        const resolved = resolveUserPathWithHome(pathSpec, home);
+        const fileContent = await fs.readFile(resolved, "utf8");
+        Object.assign(environment, parseEnvFileContent(fileContent));
+      } catch {
+        // Optional files or missing paths: skip (systemd does the same)
+      }
+    }
+    for (const { key, value } of envAssignments) {
+      environment[key] = value;
     }
     const programArguments = parseSystemdExecStart(execStart);
     return {

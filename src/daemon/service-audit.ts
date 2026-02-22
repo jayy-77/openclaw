@@ -382,7 +382,8 @@ export function checkTokenDrift(params: {
       code: SERVICE_AUDIT_CODES.gatewayTokenDrift,
       message:
         "Config token differs from service token. The daemon will use the old token after restart.",
-      detail: "Run `openclaw gateway install --force` to sync the token.",
+      detail:
+        "Run `openclaw gateway install --force` to sync the token. If the service uses EnvironmentFile=, ensure that file sets OPENCLAW_GATEWAY_TOKEN to match openclaw.json.",
       level: "recommended",
     };
   }
