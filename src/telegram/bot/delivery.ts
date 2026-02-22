@@ -11,6 +11,7 @@ import { fetchRemoteMedia } from "../../media/fetch.js";
 import { isGifMedia } from "../../media/mime.js";
 import { saveMediaBuffer } from "../../media/store.js";
 import type { RuntimeEnv } from "../../runtime.js";
+import path from "node:path";
 import { loadWebMedia } from "../../web/media.js";
 import { withTelegramApiErrorLogging } from "../api-logging.js";
 import type { TelegramInlineButtons } from "../button-types.js";
@@ -147,7 +148,10 @@ export async function deliverReplies(params: {
     // Track if we need to send a follow-up text message after media
     // (when caption exceeds Telegram's 1024-char limit)
     let pendingFollowUpText: string | undefined;
-    for (const mediaUrl of mediaList) {
+    for (let mediaUrl of mediaList) {
+      if (!/^https?:\/\//i.test(mediaUrl) && !mediaUrl.startsWith("file://")) {
+        mediaUrl = path.normalize(mediaUrl); // Windows path normalization (ref #23109).
+      }
       const isFirstMedia = first;
       const media = await loadWebMedia(mediaUrl, {
         localRoots: params.mediaLocalRoots,

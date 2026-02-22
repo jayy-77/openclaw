@@ -18,6 +18,7 @@ import { createSubsystemLogger } from "../logging/subsystem.js";
 import { mediaKindFromMime } from "../media/constants.js";
 import { isGifMedia } from "../media/mime.js";
 import { normalizePollInput, type PollInput } from "../polls.js";
+import path from "node:path";
 import { loadWebMedia } from "../web/media.js";
 import { type ResolvedTelegramAccount, resolveTelegramAccount } from "./accounts.js";
 import { withTelegramApiErrorLogging } from "./api-logging.js";
@@ -523,6 +524,9 @@ export async function sendMessageTelegram(
   };
 
   if (mediaUrl) {
+    if (!/^https?:\/\//i.test(mediaUrl) && !mediaUrl.startsWith("file://")) {
+      mediaUrl = path.normalize(mediaUrl); // Windows path normalization (ref #23109).
+    }
     const media = await loadWebMedia(mediaUrl, {
       maxBytes: opts.maxBytes,
       localRoots: opts.mediaLocalRoots,

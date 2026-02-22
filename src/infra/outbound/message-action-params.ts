@@ -193,7 +193,15 @@ async function hydrateAttachmentPayload(params: {
   }
 
   const filename = readStringParam(params.args, "filename");
-  const mediaSource = (params.mediaHint ?? undefined) || (params.fileHint ?? undefined);
+  let mediaSource = (params.mediaHint ?? undefined) || (params.fileHint ?? undefined);
+  if (
+    mediaSource &&
+    !/^https?:\/\//i.test(mediaSource) &&
+    !mediaSource.startsWith("file://") &&
+    !/^data:/i.test(mediaSource)
+  ) {
+    mediaSource = path.normalize(mediaSource); // Windows path normalization (ref #23109).
+  }
 
   if (!params.dryRun && !readStringParam(params.args, "buffer", { trim: false }) && mediaSource) {
     const maxBytes = resolveAttachmentMaxBytes({

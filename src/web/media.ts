@@ -321,6 +321,9 @@ async function loadWebMediaInternal(
     mediaUrl = resolveUserPath(mediaUrl);
   }
 
+  // Normalize local path for Windows (backslash vs forward slash; ref #23109).
+  mediaUrl = path.normalize(mediaUrl);
+
   if ((sandboxValidated || localRoots === "any") && !readFileOverride) {
     throw new LocalMediaAccessError(
       "unsafe-bypass",

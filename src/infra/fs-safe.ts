@@ -41,6 +41,7 @@ const OPEN_READ_FLAGS = fsConstants.O_RDONLY | (SUPPORTS_NOFOLLOW ? fsConstants.
 const ensureTrailingSep = (value: string) => (value.endsWith(path.sep) ? value : value + path.sep);
 
 async function openVerifiedLocalFile(filePath: string): Promise<SafeOpenResult> {
+  filePath = path.normalize(filePath); // Windows path normalization (ref #23109).
   let handle: FileHandle;
   try {
     handle = await fs.open(filePath, OPEN_READ_FLAGS);
