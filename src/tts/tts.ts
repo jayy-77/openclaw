@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -127,6 +128,12 @@ export type ResolvedTtsConfig = {
     saveSubtitles: boolean;
     proxy?: string;
     timeoutMs?: number;
+  };
+  cli?: {
+    command: string;
+    args: string[];
+    outputFormat?: string;
+    timeoutMs: number;
   };
   prefsPath?: string;
   maxTextLength: number;
@@ -303,6 +310,18 @@ export function resolveTtsConfig(cfg: OpenClawConfig): ResolvedTtsConfig {
       proxy: raw.edge?.proxy?.trim() || undefined,
       timeoutMs: raw.edge?.timeoutMs,
     },
+    cli:
+      raw.cli?.command?.trim() && Array.isArray(raw.cli.args)
+        ? {
+            command: raw.cli.command.trim(),
+            args: raw.cli.args.filter((a) => typeof a === "string"),
+            outputFormat: raw.cli.outputFormat?.trim() || undefined,
+            timeoutMs:
+              raw.cli.timeoutMs != null && raw.cli.timeoutMs >= 1000 && raw.cli.timeoutMs <= 120_000
+                ? raw.cli.timeoutMs
+                : (raw.timeoutMs ?? DEFAULT_TIMEOUT_MS),
+          }
+        : undefined,
     prefsPath: raw.prefsPath,
     maxTextLength: raw.maxTextLength ?? DEFAULT_MAX_TEXT_LENGTH,
     timeoutMs: raw.timeoutMs ?? DEFAULT_TIMEOUT_MS,
@@ -508,7 +527,7 @@ export function resolveTtsApiKey(
   return undefined;
 }
 
-export const TTS_PROVIDERS = ["openai", "elevenlabs", "edge"] as const;
+export const TTS_PROVIDERS = ["openai", "elevenlabs", "edge", "cli"] as const;
 
 export function resolveTtsProviderOrder(primary: TtsProvider): TtsProvider[] {
   return [primary, ...TTS_PROVIDERS.filter((provider) => provider !== primary)];
@@ -517,6 +536,9 @@ export function resolveTtsProviderOrder(primary: TtsProvider): TtsProvider[] {
 export function isTtsProviderConfigured(config: ResolvedTtsConfig, provider: TtsProvider): boolean {
   if (provider === "edge") {
     return config.edge.enabled;
+  }
+  if (provider === "cli") {
+    return Boolean(config.cli?.command);
   }
   return Boolean(resolveTtsApiKey(config, provider));
 }
@@ -527,6 +549,46 @@ function formatTtsProviderError(provider: TtsProvider, err: unknown): string {
     return `${provider}: request timed out`;
   }
   return `${provider}: ${error.message}`;
+}
+
+function inferCliOutputExtension(outputFormat?: string): string {
+  const format = (outputFormat ?? "wav").trim().toLowerCase();
+  if (format === "mp3") return ".mp3";
+  if (format === "opus") return ".opus";
+  if (format === "ogg") return ".ogg";
+  return ".wav";
+}
+
+function executeCliTTS(
+  cli: NonNullable<ResolvedTtsConfig["cli"]>,
+  text: string,
+  tempDir: string,
+): { audioPath: string; outputFormat: string } {
+  const outputFormat = cli.outputFormat?.trim() || "wav";
+  const extension = inferCliOutputExtension(outputFormat);
+  const audioPath = path.join(tempDir, `voice-${Date.now()}${extension}`);
+  const resolvedArgs = cli.args.map((arg) =>
+    arg
+      .replace(/\{\{text\}\}/g, text)
+      .replace(/\{\{output\}\}/g, audioPath),
+  );
+  const result = spawnSync(cli.command, resolvedArgs, {
+    stdio: "pipe",
+    encoding: "utf8",
+    timeout: cli.timeoutMs,
+    cwd: tempDir,
+  });
+  if (result.error) {
+    throw result.error;
+  }
+  if (result.status !== 0) {
+    const stderr = (result.stderr ?? "").trim() || "(no stderr)";
+    throw new Error(`exit ${result.status}: ${stderr}`);
+  }
+  if (!existsSync(audioPath)) {
+    throw new Error(`CLI did not create output file: ${audioPath}`);
+  }
+  return { audioPath, outputFormat };
 }
 
 export async function textToSpeech(params: {
@@ -628,6 +690,37 @@ export async function textToSpeech(params: {
         };
       }
 
+      if (provider === "cli") {
+        if (!config.cli?.command) {
+          errors.push("cli: not configured");
+          continue;
+        }
+        const tempRoot = resolvePreferredOpenClawTmpDir();
+        mkdirSync(tempRoot, { recursive: true, mode: 0o700 });
+        const tempDir = mkdtempSync(path.join(tempRoot, "tts-"));
+        try {
+          const cliResult = executeCliTTS(config.cli, params.text, tempDir);
+          scheduleCleanup(tempDir);
+          const voiceCompatible = isVoiceCompatibleAudio({ fileName: cliResult.audioPath });
+          return {
+            success: true,
+            audioPath: cliResult.audioPath,
+            latencyMs: Date.now() - providerStart,
+            provider,
+            outputFormat: cliResult.outputFormat,
+            voiceCompatible,
+          };
+        } catch (err) {
+          try {
+            rmSync(tempDir, { recursive: true, force: true });
+          } catch {
+            // ignore cleanup errors
+          }
+          errors.push(formatTtsProviderError(provider, err));
+          continue;
+        }
+      }
+
       const apiKey = resolveTtsApiKey(config, provider);
       if (!apiKey) {
         errors.push(`${provider}: no API key`);
@@ -724,6 +817,10 @@ export async function textToSpeechTelephony(params: {
     try {
       if (provider === "edge") {
         errors.push("edge: unsupported for telephony");
+        continue;
+      }
+      if (provider === "cli") {
+        errors.push("cli: unsupported for telephony");
         continue;
       }
 

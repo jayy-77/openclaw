@@ -1,4 +1,4 @@
-export type TtsProvider = "elevenlabs" | "openai" | "edge";
+export type TtsProvider = "elevenlabs" | "openai" | "edge" | "cli";
 
 export type TtsMode = "final" | "all";
 
@@ -71,6 +71,13 @@ export type TtsConfig = {
     volume?: string;
     saveSubtitles?: boolean;
     proxy?: string;
+    timeoutMs?: number;
+  };
+  /** CLI-based TTS (any executable). Placeholders: {{text}}, {{output}}. */
+  cli?: {
+    command: string;
+    args: string[];
+    outputFormat?: string;
     timeoutMs?: number;
   };
   /** Optional path for local TTS user preferences JSON. */

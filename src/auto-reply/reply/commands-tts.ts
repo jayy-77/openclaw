@@ -62,7 +62,7 @@ function ttsUsage(): ReplyPayload {
       `• Summary ON: AI summarizes, then generates audio\n` +
       `• Summary OFF: Truncates text, then generates audio\n\n` +
       `**Examples:**\n` +
-      `/tts provider edge\n` +
+      `/tts provider edge | cli\n` +
       `/tts limit 2000\n` +
       `/tts audio Hello, this is a test!`,
   };
@@ -171,13 +171,19 @@ export const handleTtsCommands: CommandHandler = async (params, allowTextCommand
             `OpenAI key: ${hasOpenAI ? "✅" : "❌"}\n` +
             `ElevenLabs key: ${hasElevenLabs ? "✅" : "❌"}\n` +
             `Edge enabled: ${hasEdge ? "✅" : "❌"}\n` +
-            `Usage: /tts provider openai | elevenlabs | edge`,
+            `CLI configured: ${isTtsProviderConfigured(config, "cli") ? "✅" : "❌"}\n` +
+            `Usage: /tts provider openai | elevenlabs | edge | cli`,
         },
       };
     }
 
     const requested = args.trim().toLowerCase();
-    if (requested !== "openai" && requested !== "elevenlabs" && requested !== "edge") {
+    if (
+      requested !== "openai" &&
+      requested !== "elevenlabs" &&
+      requested !== "edge" &&
+      requested !== "cli"
+    ) {
       return { shouldContinue: false, reply: ttsUsage() };
     }
 

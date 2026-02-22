@@ -470,6 +470,11 @@ export const FIELD_HELP: Record<string, string> = {
     "Voice channels to auto-join on startup (list of guildId/channelId entries).",
   "channels.discord.voice.tts":
     "Optional TTS overrides for Discord voice playback (merged with messages.tts).",
+  "messages.tts.cli.command":
+    "CLI TTS: executable path or name. Placeholders in args: {{text}}, {{output}}.",
+  "messages.tts.cli.args": "CLI TTS: arguments (use {{text}} for input text, {{output}} for output file path).",
+  "messages.tts.cli.outputFormat": "CLI TTS: output format (e.g. wav, mp3, opus).",
+  "messages.tts.cli.timeoutMs": "CLI TTS: command timeout in milliseconds.",
   "channels.discord.intents.presence":
     "Enable the Guild Presences privileged intent. Must also be enabled in the Discord Developer Portal. Allows tracking user activities (e.g. Spotify). Default: false.",
   "channels.discord.intents.guildMembers":
